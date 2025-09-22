@@ -12,14 +12,20 @@ COPY pom.xml .
 # Make mvnw executable
 RUN chmod +x mvnw
 
-# Download dependencies (this step is cached if pom.xml doesn't change)
+# Download dependencies (cached if pom.xml doesn’t change)
 RUN ./mvnw dependency:go-offline -B
 
-# Copy the source code
+# Copy the full source
 COPY src src
 
-# Build the application
+# Build the application (produces target/*.jar)
 RUN ./mvnw clean package -DskipTests
 
+# Expose port (Render will map this automatically)
+EXPOSE 8080
+
+# Copy the jar explicitly (replace crm-0.0.1-SNAPSHOT.jar with your real jar name if different)
+COPY target/*SNAPSHOT.jar app.jar
+
 # Run the application
-CMD ["java", "-jar", "target/*.jar"]
+CMD ["java", "-jar", "app.jar"]
