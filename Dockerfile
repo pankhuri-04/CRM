@@ -1,34 +1,28 @@
-# =======================
-# Stage 1: Build the JAR
-# =======================
-FROM maven:3.9.3-eclipse-temurin-17 AS build
-
-# Set working directory
-WORKDIR /app
-
-# Copy Maven files first (for caching dependencies)
-COPY pom.xml .
-RUN mvn dependency:go-offline
-
-# Copy the source code
-COPY src ./src
-
-# Build the project (skip tests for faster build)
-RUN mvn clean package -DskipTests
-
-# =======================
-# Stage 2: Run the JAR
-# =======================
+# Use OpenJDK 17 base image
 FROM openjdk:17-jdk-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy JAR from the build stage
-COPY --from=build /app/target/*.jar app.jar
+# Copy Maven wrapper & pom.xml first (to leverage caching)
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
 
-# Expose the port your Spring Boot app runs on
-EXPOSE 8080
+# Make mvnw executable
+RUN chmod +x mvnw
 
-# Run the Spring Boot app
-ENTRYPOINT ["java","-jar","app.jar"]
+# Download dependencies (cached if pom.xml doesn’t change)
+RUN ./mvnw dependency:go-offline -B
+
+# Copy source code
+COPY src src
+
+# Build the application
+RUN ./mvnw clean package -DskipTests
+
+# Copy the built jar into the image
+COPY target/crm-0.0.1-SNAPSHOT.jar app.jar
+
+# Run the application
+CMD ["java", "-jar", "app.jar"]
